@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+</head>
+
+<body>
+    <audio id="audio" controls />
+    <script src="crypto-js/core.js"></script>
+    <script src="crypto-js/sha1.js"></script>
+    <script src="crypto-js/hmac.js"></script>
+    <script src="crypto-js/enc-base64.js"></script>
+    <script src="crypto-js/cipher-core.js"></script>
+    <script src="crypto-js/aes.js"></script>
+    <script src="crypto-js/pbkdf2.js"></script>
+    <script>
+        console.log('start')
+
+        function encrypt(encypt_text, password) {
+            var pass = CryptoJS.enc.Utf8.parse(password);
+            var salt = CryptoJS.lib.WordArray.random(128 / 8);
+            var key = CryptoJS.PBKDF2(pass, salt, { keySize: 256 / 32, iterations: 100 });
+            var iv = CryptoJS.lib.WordArray.random(128 / 8);
+            var options = { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 };
+            var encrypted = CryptoJS.AES.encrypt(encypt_text, key, options);
+            return salt.toString() + iv.toString() + encrypted.toString();
+        }
+        function decrypt(transitmessage, password) {
+            var salt = CryptoJS.enc.Hex.parse(transitmessage.substr(0, 32));
+            var iv = CryptoJS.enc.Hex.parse(transitmessage.substr(32, 32));
+            var encrypted = transitmessage.substring(64);
+            var pass = CryptoJS.enc.Utf8.parse(password);
+            var key = CryptoJS.PBKDF2(pass, salt, { keySize: 256 / 32, iterations: 100 });
+            var options = { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 };
+            var decrypted = CryptoJS.AES.decrypt(encrypted, key, options);
+            return decrypted.toString(CryptoJS.enc.Utf8);
+        }
+
+        function encdec(text) {
+            console.log(text)
+            password = 'testtest'
+            enctext = encrypt(text, password)
+            dectext = decrypt(enctext, password)
+            console.log(dectext)
+
+            const audio = document.getElementById('audio'); // new Audio();
+            audio.autoplay = true;
+            audio.onload = () => {
+                URL.revokeObjectURL(dectext);
+            };
+            audio.src = dectext;
+        }
+
+        function load() {
+            var data = "temppassword=hogefuga";
+
+            const xhr = new XMLHttpRequest();
+            xhr.addEventListener("progress", function (oEvent) {
+                if (oEvent.lengthComputable) {
+                    var percentComplete = oEvent.loaded / oEvent.total * 100;
+                    console.log(percentComplete.toString() + "%");
+                }
+            });
+            xhr.addEventListener("load", function (evt) {
+                console.log("転送が完了しました。");
+            });
+            xhr.addEventListener("error", function (evt) {
+                console.log("ファイルの転送中にエラーが発生しました。");
+            });
+            xhr.addEventListener("abort", function (evt) {
+                console.log("ユーザーが転送をキャンセルしました。");
+            });
+
+            xhr.open('POST', 'k.mp3');
+            xhr.responseType = 'arraybuffer';
+
+            xhr.onload = () => {
+                console.log(xhr.response)
+                const blob = new Blob([xhr.response], { type: 'audio/mpeg' });
+                console.log(blob)
+                const objectUrl = URL.createObjectURL(blob);
+                console.log(objectUrl)
+                // const audio = document.getElementById('audio'); // new Audio();
+                // audio.autoplay = true;
+                // audio.onload = () => {
+                //     URL.revokeObjectURL(objectUrl);
+                // };
+                // audio.src = objectUrl;
+
+                encdec(objectUrl)
+            };
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+
+            // 送信
+            xhr.send(data);
+        }
+        load()
+    </script>
+</body>
+
+</html>
